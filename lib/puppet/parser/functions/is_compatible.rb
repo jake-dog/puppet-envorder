@@ -67,14 +67,20 @@ EOT
 
   puppetdb = PuppetDB::Connection.new(Puppet::Util::Puppetdb.server, Puppet::Util::Puppetdb.port)
 
-  Puppet.debug(packagereqs.inspect)
-
   !packagereqs.any? {|package,reqs|
-    Puppet.debug(package.inspect)
-    Puppet.debug(reqs.inspect)
-    ## Construct an optional node query
-    query = "environment='#{@environment || "production"}'#{(" and " + reqs['query'].to_s) if reqs['query']}"
-    Puppet.debug(query)
+
+    ## Construct an optional node query, including an environment if found
+    query = if reqs['environment'] and reqs['environment'].is_a? String && !reqs['environment'].empty?
+      ["environment='#{reqs['environment']}'"]
+    elsif @environment && @environment.is_a? String && !@environment.empty?
+      ["environment='#{@environment}'"]
+    else
+      debug("envorder: No environment variable, or no environment specified.  Reverting to global check")
+      []
+    end
+    query = query + [reqs['query']] if reqs['query'] && reqs['query'].is_a? String
+    query = query.join(" and ")
+
     if reqs['fact'] and reqs['fact'].is_a? String
       query = puppetdb.parse_query query, :facts
       ops = { :extract => [:certname, :name, :value] }

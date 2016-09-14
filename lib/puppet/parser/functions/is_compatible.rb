@@ -81,44 +81,28 @@ EOT
     query = query + [reqs['query']] if reqs['query'] && reqs['query'].is_a? String
     query = query.join(" and ")
 
-    if reqs['fact'] and reqs['fact'].is_a? String
-      query = puppetdb.parse_query query, :facts
-      ops = { :extract => [:certname, :name, :value] }
-      qtype = :facts
-    else
-      query = puppetdb.parse_query query, :facts if query and query.is_a? String
-      ops = { :extract => nil }
-      qtype = :resources
-    end
+    query = puppetdb.parse_query query, :facts if query and query.is_a? String
 
     ## We're querying for a package unless a fact is provided
     resquery = puppetdb.parse_query "Package['#{package}']", :none if reqs['fact'].nil?
-    Puppet.debug("YOUR QUERY IS: #{resquery.inspect}")
 
-    # Construct query
-    if resquery && !resquery.empty?
-      q = ['and', resquery, query]
-    else
-      q = query
-    end
+    Puppet.debug("envorder: compatibility query generated for #{qtype.to_s}: #{["and", [query,resquery]].inspect}")
 
-    Puppet.debug("PuppetDB compatibility query generated for #{qtype.to_s}: #{query.inspect}")
-
-    if qtype == :resources
-      results = puppetdb.resources(query, resquery)
-      Puppet.debug(results.inspect)
-      results.values.any? {|resources|
-        packagever = resources[0]['parameters']['ensure']
-        Puppet.debug(packagever.inspect)
-        Puppet::Util::Package.versioncmp(packagever, reqs['min']) == -1 ||
-        Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
-      }
-    else
+    if reqs['fact'] and reqs['fact'].is_a? String
       results = puppetdb.facts(reqs['fact'], query)
 
       results.values.any? {|facts|
         packagever = facts[reqs['fact']]
-        Puppet.debug(packagever.inspect)
+
+        Puppet::Util::Package.versioncmp(packagever, reqs['min']) == -1 ||
+        Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
+      }
+    else
+      results = puppetdb.resources(query, resquery)
+
+      results.values.any? {|resources|
+        packagever = resources[0]['parameters']['ensure']
+
         Puppet::Util::Package.versioncmp(packagever, reqs['min']) == -1 ||
         Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
       }

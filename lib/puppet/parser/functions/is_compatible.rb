@@ -1,6 +1,6 @@
 require 'puppet/util/package'
 
-Puppet::Parser::Functions.newfunction(:is_compatible, :type => :rvalue, :arity => -1, :doc => <<-EOT
+Puppet::Parser::Functions.newfunction(:is_compatible, :type => :rvalue, :arity => -2, :doc => <<-EOT
 
   Accepts one argument: a hash keyed by package names, with each value being a hash with a
   minimum and/or maximum acceptable package version, with optional resource query parameters
@@ -54,7 +54,7 @@ Puppet::Parser::Functions.newfunction(:is_compatible, :type => :rvalue, :arity =
 
 EOT
                                      ) do |args|
-  packagereqs = args[0]
+  packagereqs, failerrors = args
 
   require 'puppet/util/puppetdb'
   # This is needed if the puppetdb library isn't pluginsynced to the master
@@ -107,5 +107,5 @@ EOT
         Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
       }
     end
-  }
+  } || (failerrors && fail "envorder: incompatible version detected")
 end

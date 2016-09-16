@@ -70,23 +70,25 @@ EOT
   !packagereqs.any? {|package,reqs|
 
     ## Construct an optional node query, including an environment if found
-    query = if reqs['environment'] and reqs['environment'].is_a? String && !reqs['environment'].empty?
+    query = if reqs['environment'] && !reqs['environment'].empty? && reqs['environment'].is_a?(String)
       ["environment='#{reqs['environment']}'"]
-    elsif @environment && @environment.is_a? String && !@environment.empty?
+    elsif @environment && !@environment.empty? &&  @environment.is_a?(String)
       ["environment='#{@environment}'"]
     else
       debug("envorder: No environment variable, or no environment specified.  Reverting to global check")
       []
     end
-    query = query + [reqs['query']] if reqs['query'] && reqs['query'].is_a? String
+    query = query + [reqs['query']] if reqs['query'] && reqs['query'].is_a?(String)
     query = query.join(" and ")
 
-    query = puppetdb.parse_query query, :facts if query and query.is_a? String
+    query = puppetdb.parse_query query, :facts if query and query.is_a?(String)
 
     ## We're querying for a package unless a fact is provided
     resquery = puppetdb.parse_query "Package['#{package}']", :none if reqs['fact'].nil?
 
-    Puppet.debug("envorder: compatibility query generated for #{qtype.to_s}: #{["and", [query,resquery]].inspect}")
+    qtype = "resources"
+    qtype = "facts" if !reqs['fact'].nil?
+    Puppet.debug("envorder: compatibility query generated for #{qtype}: #{["and", [query,resquery]].inspect}")
 
     if reqs['fact'] and reqs['fact'].is_a? String
       results = puppetdb.facts(reqs['fact'], query)

@@ -322,6 +322,8 @@ describe 'is_compatible' do
   end
   
   context 'with no environment specified' do
+    before(:each) { scope.expects(:lookupvar).with('environment').returns(nil) }
+
     it 'should work with a query' do
       PuppetDB::Connection.any_instance.expects(:resources)
         .with(["in", "certname", ["extract", "certname", ["select-facts", ["and", ["=", "name", "ipaddress"], ["=", "value", "192.168.136.132"]]]]],

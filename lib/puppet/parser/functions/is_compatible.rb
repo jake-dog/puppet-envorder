@@ -55,6 +55,7 @@ Puppet::Parser::Functions.newfunction(:is_compatible, :type => :rvalue, :arity =
 EOT
                                      ) do |args|
   packagereqs, failerrors = args
+  failerrors = !!failerrors
 
   require 'puppet/util/puppetdb'
   # This is needed if the puppetdb library isn't pluginsynced to the master
@@ -109,5 +110,5 @@ EOT
         Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
       }
     end
-  } || (failerrors && fail "envorder: incompatible version detected")
+  } || (failerrors && fail("envorder: incompatible version detected"))
 end

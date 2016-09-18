@@ -40,15 +40,14 @@ Puppet::Parser::Functions.newfunction(:is_compatible, :type => :rvalue, :arity =
         }
       })
 
-    Check if "mod_awesome" packages in a given environment, where app is "awesome_cluster1",
+    Check if 'httpd' packages in a given environment, where app is "awesome_cluster1",
     has a version >=2.0.0, <5.0.0:
 
       is_compatible({
-        'mod_awesome' => {
+        'httpd' => {
           'min' => '2.0.0',
           'max' => '5.0.0',
-          'fact' => 'mod_awesome_version',
-          'query' => 'app="awesome_cluster1"'
+          'query' => 'app="httpd_cluster1"'
         }
       })
 

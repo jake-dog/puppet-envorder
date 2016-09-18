@@ -55,6 +55,7 @@ EOT
                                      ) do |args|
   packagereqs, failerrors = args
   failerrors = !!failerrors
+  environment = lookupvar('environment')
 
   require 'puppet/util/puppetdb'
   # This is needed if the puppetdb library isn't pluginsynced to the master
@@ -72,8 +73,11 @@ EOT
     ## Construct an optional node query, including an environment if found
     query = if reqs['environment'] && !reqs['environment'].empty? && reqs['environment'].is_a?(String)
       ["environment='#{reqs['environment']}'"]
-    elsif @environment && !@environment.empty? &&  @environment.is_a?(String)
-      ["environment='#{@environment}'"]
+    elsif reqs['environment'] == ''
+      debug("envorder: Empty environment specified.  Reverting to global check")
+      []
+    elsif environment && !environment.empty? && environment.is_a?(String)
+      ["environment='#{environment}'"]
     else
       debug("envorder: No environment variable, or no environment specified.  Reverting to global check")
       []

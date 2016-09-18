@@ -124,6 +124,53 @@ describe 'is_compatible' do
       is_expected.to run.with_params({'tree'=> {'min' => '1.5.0-3', 'max' => '1.6.0-1', 'environment' => 'staging', 'query' => 'ipaddress=\'192.168.136.132\''}}).and_return(true)
     end
     
+    it 'should allow multiple criteria node query' do
+      PuppetDB::Connection.any_instance.expects(:resources)
+        .with(['and', ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'staging']]]]], 
+                      ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'ipaddress'], ['=', 'value', '192.168.136.132']]]]]],
+              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+        .returns({
+          "localhost.localdomain" =>
+            [
+              {
+                "title"=>"tree",
+                "certname"=>"localhost.localdomain",
+                "resource"=>"56933d99a4f403b05ef65a36fb3eded367f95a1c",
+                "tags"=>["resource", "package", "class", "package-tree", "tree", "resource_tree", "resource_tree::resource", "default", "node"],
+                "parameters"=>{"ensure"=>"1.5.3-3.el6", "provider"=>"yum", "before"=>"Resource_tree::Placeholder[package-tree]"},
+                "type"=>"Package",
+                "file"=>nil,
+                "exported"=>false,
+                "line"=>nil
+              }
+            ]
+          })
+      is_expected.to run.with_params({'tree'=> {'min' => '1.5.0-3', 'max' => '1.6.0-1', 'environment' => '', 'query' => 'environment=\'staging\' and ipaddress=\'192.168.136.132\''}}).and_return(true)
+    end
+    
+    it 'should fail on incomaptible version when failerror=true' do
+      PuppetDB::Connection.any_instance.expects(:resources)
+        .with(['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]],
+              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+        .returns({
+          "puppet.localdomain" =>
+            [
+              {
+                "title"=>"tree",
+                "certname"=>"localhost.localdomain",
+                "resource"=>"56933d99a4f403b05ef65a36fb3eded367f95a1c",
+                "tags"=>["resource", "package", "class", "package-tree", "tree", "resource_tree", "resource_tree::resource", "default", "node"],
+                "parameters"=>{"ensure"=>"1.4.1-1.el6", "provider"=>"yum", "before"=>"Resource_tree::Placeholder[package-tree]"},
+                "type"=>"Package",
+                "file"=>nil,
+                "exported"=>false,
+                "line"=>nil
+              }
+            ] 
+          })
+      is_expected.to run.with_params({'tree'=> {'min' => '1.5.0-3', 'max' => '1.6.0-1'}}, true).and_raise_error(Puppet::Error)
+    end
+    
     it 'should find incompatible version' do
       PuppetDB::Connection.any_instance.expects(:resources)
         .with(['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]],
@@ -201,6 +248,16 @@ describe 'is_compatible' do
              "puppet.localdomain"=>{"puppetversion"=>"3.4.3"}}
           )
       is_expected.to run.with_params({'puppet'=> {'min' => '3.6.0', 'max' => '4.0.0', 'fact' => 'puppetversion'}}).and_return(false)
+    end
+    
+    it 'should fail on incomaptible fact when failerror=true' do
+      PuppetDB::Connection.any_instance.expects(:facts)
+        .with("puppetversion",
+              ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]])
+        .returns(
+            {"puppet.localdomain"=>{"puppetversion"=>"3.4.3"}}
+          )
+      is_expected.to run.with_params({'puppet'=> {'min' => '3.6.0', 'max' => '4.0.0', 'fact' => 'puppetversion'}}, true).and_raise_error(Puppet::Error)
     end
     
     it 'should allow mixed fact/resource queries' do
@@ -369,6 +426,30 @@ describe 'is_compatible' do
             ] 
           })
       is_expected.to run.with_params({'tree'=> {'min' => '1.5.0-3', 'max' => '1.6.0-1'}}).and_return(false)
+    end
+    
+    it 'should allow multiple criteria node query' do
+      PuppetDB::Connection.any_instance.expects(:resources)
+        .with(['and', ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'staging']]]]], 
+                      ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'ipaddress'], ['=', 'value', '192.168.136.132']]]]]],
+              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+        .returns({
+          "localhost.localdomain" =>
+            [
+              {
+                "title"=>"tree",
+                "certname"=>"localhost.localdomain",
+                "resource"=>"56933d99a4f403b05ef65a36fb3eded367f95a1c",
+                "tags"=>["resource", "package", "class", "package-tree", "tree", "resource_tree", "resource_tree::resource", "default", "node"],
+                "parameters"=>{"ensure"=>"1.5.3-3.el6", "provider"=>"yum", "before"=>"Resource_tree::Placeholder[package-tree]"},
+                "type"=>"Package",
+                "file"=>nil,
+                "exported"=>false,
+                "line"=>nil
+              }
+            ]
+          })
+      is_expected.to run.with_params({'tree'=> {'min' => '1.5.0-3', 'max' => '1.6.0-1', 'query' => 'environment=\'staging\' and ipaddress=\'192.168.136.132\''}}).and_return(true)
     end
     
     it 'should allow fact query' do

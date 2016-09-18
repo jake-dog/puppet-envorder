@@ -16,7 +16,11 @@ group :development, :unit_tests do
   gem 'simplecov',               :require => false
   gem 'puppet_facts',            :require => false
   gem 'json',                    :require => false
-  gem 'ruby-puppetdb', '1.5.3',  :require => false
+  if puppetdbversion = ENV['PUPPETDB_GEM_VERSION']
+    gem 'ruby-puppetdb', puppetdbversion,  :require => false
+  else
+    gem 'ruby-puppetdb', '1.5.3',  :require => false
+  end
 end
 
 group :system_tests do

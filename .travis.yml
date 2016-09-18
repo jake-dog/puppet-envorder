@@ -1,0 +1,19 @@
+---
+branches:
+  only:
+    - master
+language: ruby
+before_install: 'bundle install'
+bundler_args: --without development
+script: 'bundle exec rake spec'
+rvm:
+  - 2.0.0
+gemfile: Gemfile
+env:
+  matrix:
+    - PUPPET_GEM_VERSION="~> 3.6.0" PUPPETDB_GEM_VERSION="1.5.0"
+    - PUPPET_GEM_VERSION="~> 3.6.0" PUPPETDB_GEM_VERSION="1.6.1"
+    - PUPPET_GEM_VERSION="~> 3.7.1" PUPPETDB_GEM_VERSION="1.5.0"
+    - PUPPET_GEM_VERSION="~> 3.7.1" PUPPETDB_GEM_VERSION="1.6.1"
+    - PUPPET_GEM_VERSION="~> 3.8.7" PUPPETDB_GEM_VERSION="1.5.0"
+    - PUPPET_GEM_VERSION="~> 3.8.7" PUPPETDB_GEM_VERSION="1.6.1"

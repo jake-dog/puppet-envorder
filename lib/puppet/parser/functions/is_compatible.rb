@@ -69,7 +69,6 @@ EOT
   puppetdb = PuppetDB::Connection.new(Puppet::Util::Puppetdb.server, Puppet::Util::Puppetdb.port)
 
   !packagereqs.any? {|package,reqs|
-
     ## Construct an optional node query, including an environment if found
     query = if reqs['environment'] && !reqs['environment'].empty? && reqs['environment'].is_a?(String)
       ["environment='#{reqs['environment']}'"]
@@ -86,32 +85,21 @@ EOT
     query = query.join(" and ")
 
     query = puppetdb.parse_query query, :facts if query and query.is_a?(String)
-
-    ## We're querying for a package unless a fact is provided
     resquery = puppetdb.parse_query "Package['#{package}']", :none if reqs['fact'].nil?
 
-    qtype = "resources"
-    qtype = "facts" if !reqs['fact'].nil?
-    Puppet.debug("envorder: compatibility query generated for #{qtype}: #{["and", [query,resquery]].inspect}")
-
     if reqs['fact'] and reqs['fact'].is_a? String
+      Puppet.debug("envorder: compatibility query generated for facts: #{resquery.inspect}")
       results = puppetdb.facts(reqs['fact'], query)
-
-      results.values.any? {|facts|
-        packagever = facts[reqs['fact']]
-
-        Puppet::Util::Package.versioncmp(packagever, reqs['min']) == -1 ||
-        Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
-      }
+      results = results.values.map {|facts| facts[reqs['fact']] }
     else
+      Puppet.debug("envorder: compatibility query generated for resources: #{["and", [query,resquery]].inspect}")
       results = puppetdb.resources(query, resquery)
-
-      results.values.any? {|resources|
-        packagever = resources[0]['parameters']['ensure']
-
-        Puppet::Util::Package.versioncmp(packagever, reqs['min']) == -1 ||
-        Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
-      }
+      results = results.values.map {|resources| resources[0]['parameters']['ensure'] }
     end
+
+    results.any? {|packagever|
+      Puppet::Util::Package.versioncmp(packagever, reqs['min']) == -1 ||
+      Puppet::Util::Package.versioncmp(packagever, reqs['max']) >= 0
+    }
   } || (failerrors && fail("envorder: incompatible version detected"))
 end

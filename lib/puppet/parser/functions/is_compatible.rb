@@ -66,7 +66,16 @@ EOT
     $LOAD_PATH.shift
   end
 
-  puppetdb = PuppetDB::Connection.new(Puppet::Util::Puppetdb.server, Puppet::Util::Puppetdb.port)
+  ## compatbility with pdbquery 2.x
+  if PuppetDB::Connection.respond_to? :check_version
+    PuppetDB::Connection.check_version
+
+    uri = URI(Puppet::Util::Puppetdb.config.server_urls.first)
+    puppetdb = PuppetDB::Connection.new(uri.host, uri.port, uri.scheme == 'https')
+    parser = PuppetDB::Parser.new
+  else
+    puppetdb = PuppetDB::Connection.new(Puppet::Util::Puppetdb.server, Puppet::Util::Puppetdb.port)
+  end
 
   !packagereqs.any? {|package,reqs|
     ## Construct an optional node query, including an environment if found
@@ -84,17 +93,34 @@ EOT
     query = query + [reqs['query']] if reqs['query'] && reqs['query'].is_a?(String)
     query = query.join(" and ")
 
-    query = puppetdb.parse_query query, :facts if query and query.is_a?(String)
-    resquery = puppetdb.parse_query "Package['#{package}']", :none if reqs['fact'].nil?
-
-    if reqs['fact'] and reqs['fact'].is_a? String
-      Puppet.debug("envorder: compatibility query generated for facts: #{resquery.inspect}")
-      results = puppetdb.facts(reqs['fact'], query)
-      results = results.values.map {|facts| facts[reqs['fact']] }
+    ## compatbility with pdbquery 2.x
+    if defined? parser
+      if reqs['fact'] and reqs['fact'].is_a? String
+        q = parser.facts_query query, reqs['fact']
+        Puppet.debug("envorder: compatibility query generated for facts: #{q.inspect}")
+        results = puppetdb.query(:facts, q, { :extract => [:certname, :name, :value] })
+        results = parser.facts_hash(results)
+        results = results.values.map {|facts| facts[reqs['fact']] }
+      else
+        resquery = parser.parse "Package['#{package}']", :none
+        query = parser.parse query, :facts if query and query.is_a? String
+        q = query && !query.empty? && ['and', resquery, query] || query
+        Puppet.debug("envorder: compatibility query generated for resources: #{q.inspect}")
+        results = puppetdb.query(:resources, q)
+        results = results.values.map {|resources| resources[0]['parameters']['ensure'] }
+      end
     else
-      Puppet.debug("envorder: compatibility query generated for resources: #{["and", [query,resquery]].inspect}")
-      results = puppetdb.resources(query, resquery)
-      results = results.values.map {|resources| resources[0]['parameters']['ensure'] }
+      query = puppetdb.parse_query query, :facts if query and query.is_a?(String)
+      if reqs['fact'] and reqs['fact'].is_a? String
+        Puppet.debug("envorder: compatibility query generated for facts: #{query.inspect}")
+        results = puppetdb.facts(reqs['fact'], query)
+        results = results.values.map {|facts| facts[reqs['fact']] }
+      else
+        resquery = puppetdb.parse_query "Package['#{package}']", :none
+        Puppet.debug("envorder: compatibility query generated for resources: #{["and", [query,resquery]].inspect}")
+        results = puppetdb.resources(query, resquery)
+        results = results.values.map {|resources| resources[0]['parameters']['ensure'] }
+      end
     end
 
     results.any? {|packagever|

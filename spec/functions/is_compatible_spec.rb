@@ -8,10 +8,21 @@ describe 'is_compatible' do
     before(:each) { scope.expects(:lookupvar).with('environment').returns('production') }
     
     it 'should work with a query' do
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(['and', ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]], 
-                      ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'ipaddress'], ['=', 'value', '192.168.136.132']]]]]],
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]], 
+                           ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['ipaddress']], ['=', 'value', '192.168.136.132']]]]]]
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]], 
+                        ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'ipaddress'], ['=', 'value', '192.168.136.132']]]]]]
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [

@@ -94,7 +94,7 @@ EOT
     query = query.join(" and ")
 
     ## compatbility with pdbquery 2.x
-    if defined? parser
+    if !parser.nil? && defined? parser
       if reqs['fact'] and reqs['fact'].is_a? String
         q = parser.facts_query query, reqs['fact']
         Puppet.debug("envorder: compatibility query generated for facts: #{q.inspect}")

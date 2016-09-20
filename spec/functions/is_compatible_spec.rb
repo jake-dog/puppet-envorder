@@ -220,12 +220,21 @@ describe 'is_compatible' do
     end
     
     it 'should allow fact query' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]])
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]], 
+                        ['or', ['=', 'name', 'puppetversion']]]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'localhost.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]]
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
       is_expected.to run.with_params({'puppet'=> {'min' => '3.6.0', 'max' => '4.0.0', 'fact' => 'puppetversion'}}).and_return(true)
     end
     

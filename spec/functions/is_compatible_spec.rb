@@ -390,15 +390,34 @@ describe 'is_compatible' do
     end
     
     it 'should allow mixed fact/resource queries' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]])
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]],
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]], 
+                        ['or', ['=', 'name', 'puppetversion']]]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'puppet.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]]
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]]
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]]
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -420,15 +439,34 @@ describe 'is_compatible' do
     end
     
     it 'should find incompatbile with mixed fact/resource queries' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]])
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]],
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]], 
+                        ['or', ['=', 'name', 'puppetversion']]]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'puppet.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]]
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]]
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]]
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -454,9 +492,19 @@ describe 'is_compatible' do
     before(:each) { scope.expects(:lookupvar).with('environment').returns(nil) }
 
     it 'should work with a query' do
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(["in", "certname", ["extract", "certname", ["select-facts", ["and", ["=", "name", "ipaddress"], ["=", "value", "192.168.136.132"]]]]],
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['ipaddress']], ['=', 'value', '192.168.136.132']]]]]
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = ["in", "certname", ["extract", "certname", ["select-facts", ["and", ["=", "name", "ipaddress"], ["=", "value", "192.168.136.132"]]]]]
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -477,9 +525,19 @@ describe 'is_compatible' do
     end
     
     it 'should work with no extra params' do
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(nil,
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = nil
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = nil
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -500,9 +558,19 @@ describe 'is_compatible' do
     end
     
     it 'should allow explicit environment' do
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]],
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]]
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]]
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -523,9 +591,19 @@ describe 'is_compatible' do
     end
     
     it 'should find incompatible version' do
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(nil,
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = nil
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = nil
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -560,10 +638,21 @@ describe 'is_compatible' do
     end
     
     it 'should allow multiple criteria node query' do
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(['and', ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'staging']]]]], 
-                      ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'ipaddress'], ['=', 'value', '192.168.136.132']]]]]],
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'staging']]]]], 
+                        ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['ipaddress']], ['=', 'value', '192.168.136.132']]]]]]
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'staging']]]]], 
+                        ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'ipaddress'], ['=', 'value', '192.168.136.132']]]]]]
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -584,56 +673,109 @@ describe 'is_compatible' do
     end
     
     it 'should allow fact query' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              nil)
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['or', ['=', 'name', 'puppetversion']]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'localhost.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = nil
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
       is_expected.to run.with_params({'puppet'=> {'min' => '3.6.0', 'max' => '4.0.0', 'fact' => 'puppetversion'}}).and_return(true)
     end
     
     it 'should allow fact query and node query' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              ["in", "certname", ["extract", "certname", ["select-facts", ["and", ["=", "name", "ipaddress"], ["=", "value", "192.168.136.132"]]]]])
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['ipaddress']], ['=', 'value', '192.168.136.132']]]]], 
+                        ['or', ['=', 'name', 'puppetversion']]]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'localhost.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = ["in", "certname", ["extract", "certname", ["select-facts", ["and", ["=", "name", "ipaddress"], ["=", "value", "192.168.136.132"]]]]]
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
       is_expected.to run.with_params({'puppet'=> {'min' => '3.6.0', 'max' => '4.0.0', 'fact' => 'puppetversion', 'query' => 'ipaddress=\'192.168.136.132\''}}).and_return(true)
     end
     
     it 'should allow explicit environment and fact query' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]])
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['and', ['in', 'certname', ['extract', 'certname', ['select_fact_contents', ['and', ['=', 'path', ['environment']], ['=', 'value', 'production']]]]], 
+                        ['or', ['=', 'name', 'puppetversion']]]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'puppet.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = ['in', 'certname', ['extract', 'certname', ['select-facts', ['and', ['=', 'name', 'environment'], ['=', 'value', 'production']]]]]
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
       is_expected.to run.with_params({'puppet'=> {'min' => '3.6.0', 'max' => '4.0.0', 'fact' => 'puppetversion', 'environment' => 'production'}}).and_return(true)
     end
     
     it 'should find incompatible fact with fact query' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              nil)
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"},
-             "puppet.localdomain"=>{"puppetversion"=>"3.4.3"}}
-          )
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['or', ['=', 'name', 'puppetversion']]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'localhost.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' },
+                { 'certname' => 'puppet.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.4.3' }]
+      else
+        query = nil
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"},
+                "puppet.localdomain"=>{"puppetversion"=>"3.4.3"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
       is_expected.to run.with_params({'puppet'=> {'min' => '3.6.0', 'max' => '4.0.0', 'fact' => 'puppetversion'}}).and_return(false)
     end
     
     it 'should allow mixed fact/resource queries' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              nil)
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(nil,
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['or', ['=', 'name', 'puppetversion']]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'localhost.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = nil
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
+      if PuppetDB::Connection.respond_to? :check_version
+        query = nil
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = nil
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [
@@ -655,15 +797,33 @@ describe 'is_compatible' do
     end
     
     it 'should find incompatbile with mixed fact/resource queries' do
-      PuppetDB::Connection.any_instance.expects(:facts)
-        .with("puppetversion",
-              nil)
-        .returns(
-            {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
-          )
-      PuppetDB::Connection.any_instance.expects(:resources)
-        .with(nil,
-              ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]])
+      if PuppetDB::Connection.respond_to? :check_version
+        query = ['or', ['=', 'name', 'puppetversion']]
+        qtype = :query
+        params = [ :facts, query, { :extract => [:certname, :name, :value] } ]
+        rval = [{ 'certname' => 'localhost.localdomain', 'environment' => 'production', 'name' => 'puppetversion', 'value' => '3.8.7' }]
+      else
+        query = nil
+        qtype = :facts
+        params = [ "puppetversion", query ]
+        rval = {"localhost.localdomain"=>{"puppetversion"=>"3.8.7"}}
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
+        .returns(rval)
+      if PuppetDB::Connection.respond_to? :check_version
+        query = nil
+        resquery = ['and', ['=', 'type', 'Package'], ['=', 'title', 'tree'], ['=', 'exported', false]]
+        qtype = :query
+        params = [ :resources, query && !query.empty? && ['and', resquery, query] || query ]
+      else
+        query = nil
+        resquery = ["and", ["=", "exported", false], ["=", "type", "Package"], ["=", "title", "tree"]]
+        qtype = :resources
+        params = [ query, resquery ]
+      end
+      PuppetDB::Connection.any_instance.expects(qtype)
+        .with(*params)
         .returns({
           "localhost.localdomain" =>
             [

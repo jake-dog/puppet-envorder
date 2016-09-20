@@ -96,10 +96,10 @@ EOT
     ## compatbility with pdbquery 2.x
     if !parser.nil? && defined? parser
       if reqs['fact'] and reqs['fact'].is_a? String
-        q = parser.facts_query query, reqs['fact']
+        q = parser.facts_query query, [reqs['fact']]
         Puppet.debug("envorder: compatibility query generated for facts: #{q.inspect}")
-        results = puppetdb.query(:facts, q, { :extract => [:certname, :name, :value] })
-        results = parser.facts_hash(results)
+        results = puppetdb.query(:facts, q, :extract => [:certname, :name, :value] )
+        results = parser.method(:facts_hash).arity == 1 && parser.facts_hash(results) || parser.facts_hash(results, [reqs['fact']])
         results = results.values.map {|facts| facts[reqs['fact']] }
       else
         resquery = parser.parse "Package['#{package}']", :none
